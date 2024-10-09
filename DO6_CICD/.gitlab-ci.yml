@@ -1,0 +1,54 @@
+stages:
+  - build
+  - style
+  - integration_test
+  - deploy
+
+Build:
+  stage: build
+  script:
+    - cd src/cat && make s21_cat
+    - cd ../grep && make s21_grep
+  artifacts:
+    paths:
+      - src/cat/s21_cat
+      - src/grep/s21_grep
+    expire_in: 30 days
+  after_script:
+    - chmod +x src/notify.sh
+    - sh src/notify.sh CI
+
+Style:
+  stage: style
+  script:
+    - cd src
+    - clang-format --style=Google -Werror -n cat/s21_cat.c
+    - clang-format --style=Google -Werror -n grep/s21_grep.c
+  after_script:
+    - chmod +x src/notify.sh
+    - sh src/notify.sh CI
+
+IntegrationTest:
+  stage: integration_test
+  script:
+    - chmod +x integration_tests.sh
+    - ./integration_tests.sh || { echo 'Integration tests failed.'; exit 1; }
+  dependencies:
+    - Build
+    - Style
+  after_script:
+    - chmod +x src/notify.sh
+    - sh src/notify.sh CI
+
+DeployProduction:
+  stage: deploy
+  script:
+    - chmod +x deploy.sh
+    - sh deploy.sh
+  after_script:
+    - chmod +x src/notify.sh
+    - sh src/notify.sh CD
+#  when: manual
+
+
+
